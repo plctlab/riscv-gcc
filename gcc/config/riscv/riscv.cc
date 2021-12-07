@@ -208,6 +208,19 @@ struct riscv_integer_op {
    The worst case is LUI, ADDI, SLLI, ADDI, SLLI, ADDI, SLLI, ADDI.  */
 #define RISCV_MAX_INTEGER_OPS 8
 
+enum riscv_fusion_pairs
+{
+  RISCV_FUSE_NOTHING = 0,
+  RISCV_FUSE_ZEXTW = (1 << 0),
+  RISCV_FUSE_ZEXTH = (1 << 1),
+  RISCV_FUSE_ZEXTWS = (1 << 2),
+  RISCV_FUSE_LDINDEXED = (1 << 3),
+  RISCV_FUSE_LUI_ADDI = (1 << 4),
+  RISCV_FUSE_AUIPC_ADDI = (1 << 5),
+  RISCV_FUSE_LUI_LD = (1 << 6),
+  RISCV_FUSE_AUIPC_LD = (1 << 7),
+};
+
 /* Costs of various operations on the different architectures.  */
 
 struct riscv_tune_param
@@ -221,6 +234,7 @@ struct riscv_tune_param
   unsigned short branch_cost;
   unsigned short memory_cost;
   bool slow_unaligned_access;
+  unsigned int fusible_ops;
 };
 
 /* Information about one micro-arch we know about.  */
@@ -286,6 +300,7 @@ static const struct riscv_tune_param rocket_tune_info = {
   3,						/* branch_cost */
   5,						/* memory_cost */
   true,						/* slow_unaligned_access */
+  RISCV_FUSE_NOTHING,                           /* fusible_ops */
 };
 
 /* Costs to use when optimizing for Sifive 7 Series.  */
@@ -299,6 +314,7 @@ static const struct riscv_tune_param sifive_7_tune_info = {
   4,						/* branch_cost */
   3,						/* memory_cost */
   true,						/* slow_unaligned_access */
+  RISCV_FUSE_NOTHING,                           /* fusible_ops */
 };
 
 /* Costs to use when optimizing for T-HEAD c906.  */
@@ -325,6 +341,7 @@ static const struct riscv_tune_param optimize_size_tune_info = {
   1,						/* branch_cost */
   2,						/* memory_cost */
   false,					/* slow_unaligned_access */
+  RISCV_FUSE_NOTHING,                           /* fusible_ops */
 };
 
 static tree riscv_handle_fndecl_attribute (tree *, tree, tree, int, bool *);
@@ -4836,6 +4853,177 @@ riscv_issue_rate (void)
   return tune_param->issue_rate;
 }
 
+/* Implement TARGET_SCHED_MACRO_FUSION_P.  Return true if target supports
+   instruction fusion of some sort.  */
+
+static bool
+riscv_macro_fusion_p (void)
+{
+  return tune_param->fusible_ops != RISCV_FUSE_NOTHING;
+}
+
+/* Return true iff the instruction fusion described by OP is enabled.  */
+
+static bool
+riscv_fusion_enabled_p(enum riscv_fusion_pairs op)
+{
+  return tune_param->fusible_ops & op;
+}
+
+/* Implement TARGET_SCHED_MACRO_FUSION_PAIR_P.  Return true if PREV and CURR
+   should be kept together during scheduling.  */
+
+static bool
+riscv_macro_fusion_pair_p (rtx_insn *prev, rtx_insn *curr)
+{
+  rtx prev_set = single_set (prev);
+  rtx curr_set = single_set (curr);
+  /* prev and curr are simple SET insns i.e. no flag setting or branching.  */
+  bool simple_sets_p = prev_set && curr_set && !any_condjump_p (curr);
+
+  if (!riscv_macro_fusion_p ())
+    return false;
+
+  if (simple_sets_p && (riscv_fusion_enabled_p (RISCV_FUSE_ZEXTW) ||
+			riscv_fusion_enabled_p (RISCV_FUSE_ZEXTH)))
+    {
+      /* We are trying to match the following:
+	   prev (slli) == (set (reg:DI rD)
+			       (ashift:DI (reg:DI rS) (const_int 32)))
+	   curr (slri) == (set (reg:DI rD)
+			       (lshiftrt:DI (reg:DI rD) (const_int <shift>)))
+	 with <shift> being either 32 for FUSE_ZEXTW, or
+			 `less than 32 for FUSE_ZEXTWS. */
+
+      if (GET_CODE (SET_SRC (prev_set)) == ASHIFT
+	  && GET_CODE (SET_SRC (curr_set)) == LSHIFTRT
+	  && REG_P (SET_DEST (prev_set))
+	  && REG_P (SET_DEST (curr_set))
+	  && REGNO (SET_DEST (prev_set)) == REGNO (SET_DEST (curr_set))
+	  && REGNO (XEXP (SET_SRC (curr_set), 0)) == REGNO(SET_DEST (curr_set))
+	  && CONST_INT_P (XEXP (SET_SRC (prev_set), 1))
+	  && CONST_INT_P (XEXP (SET_SRC (curr_set), 1))
+	  && INTVAL (XEXP (SET_SRC (prev_set), 1)) == 32
+	  && (( INTVAL (XEXP (SET_SRC (curr_set), 1)) == 32
+		&& riscv_fusion_enabled_p(RISCV_FUSE_ZEXTW) )
+	      || ( INTVAL (XEXP (SET_SRC (curr_set), 1)) < 32
+		   && riscv_fusion_enabled_p(RISCV_FUSE_ZEXTWS))))
+	return true;
+    }
+
+  if (simple_sets_p && riscv_fusion_enabled_p (RISCV_FUSE_ZEXTH))
+    {
+      /* We are trying to match the following:
+	   prev (slli) == (set (reg:DI rD)
+			       (ashift:DI (reg:DI rS) (const_int 48)))
+	   curr (slri) == (set (reg:DI rD)
+			       (lshiftrt:DI (reg:DI rD) (const_int 48))) */
+
+      if (GET_CODE (SET_SRC (prev_set)) == ASHIFT
+	  && GET_CODE (SET_SRC (curr_set)) == LSHIFTRT
+	  && REG_P (SET_DEST (prev_set))
+	  && REG_P (SET_DEST (curr_set))
+	  && REGNO (SET_DEST (prev_set)) == REGNO (SET_DEST (curr_set))
+	  && REGNO (XEXP (SET_SRC (curr_set), 0)) == REGNO(SET_DEST (curr_set))
+	  && CONST_INT_P (XEXP (SET_SRC (prev_set), 1))
+	  && CONST_INT_P (XEXP (SET_SRC (curr_set), 1))
+	  && INTVAL (XEXP (SET_SRC (prev_set), 1)) == 48
+	  && INTVAL (XEXP (SET_SRC (curr_set), 1)) == 48)
+	return true;
+    }
+
+  if (simple_sets_p && riscv_fusion_enabled_p (RISCV_FUSE_LDINDEXED))
+    {
+      /* We are trying to match the following:
+	   prev (add) == (set (reg:DI rD)
+			      (plus:DI (reg:DI rS1) (reg:DI rS2))
+	   curr (ld)  == (set (reg:DI rD)
+			      (mem:DI (reg:DI rD))) */
+
+      if (MEM_P (SET_SRC (curr_set))
+	  && REG_P (XEXP (SET_SRC (curr_set), 0))
+	  && REGNO (XEXP (SET_SRC (curr_set), 0)) == REGNO (SET_DEST (prev_set))
+	  && GET_CODE (SET_SRC (prev_set)) == PLUS
+	  && REG_P (XEXP (SET_SRC (prev_set), 0))
+	  && REG_P (XEXP (SET_SRC (prev_set), 1)))
+	return true;
+
+      /* We are trying to match the following:
+	   prev (add) == (set (reg:DI rD)
+			      (plus:DI (reg:DI rS1) (reg:DI rS2)))
+	   curr (lw)  == (set (any_extend:DI (mem:SUBX (reg:DI rD)))) */
+
+      if ((GET_CODE (SET_SRC (curr_set)) == SIGN_EXTEND
+	   || (GET_CODE (SET_SRC (curr_set)) == ZERO_EXTEND))
+	  && MEM_P (XEXP (SET_SRC (curr_set), 0))
+	  && REG_P (XEXP (XEXP (SET_SRC (curr_set), 0), 0))
+	  && REGNO (XEXP (XEXP (SET_SRC (curr_set), 0), 0)) == REGNO (SET_DEST (prev_set))
+	  && GET_CODE (SET_SRC (prev_set)) == PLUS
+	  && REG_P (XEXP (SET_SRC (prev_set), 0))
+	  && REG_P (XEXP (SET_SRC (prev_set), 1)))
+	return true;
+    }
+
+  if (simple_sets_p && riscv_fusion_enabled_p (RISCV_FUSE_LUI_ADDI))
+    {
+      /* We are trying to match the following:
+	   prev (lui)  == (set (reg:DI rD) (const_int UPPER_IMM_20))
+	   curr (addi) == (set (reg:DI rD)
+			       (plus:DI (reg:DI rD) (const_int IMM12))) */
+
+      if (GET_CODE (SET_SRC (curr_set)) == PLUS
+	  && CONST_INT_P (XEXP (SET_SRC (curr_set), 1))
+	  && SMALL_OPERAND (INTVAL (XEXP (SET_SRC (curr_set), 1)))
+	  && CONST_INT_P (SET_SRC (prev_set))
+	  && LUI_OPERAND (INTVAL (SET_SRC (prev_set))))
+	return true;
+    }
+
+  if (simple_sets_p && riscv_fusion_enabled_p (RISCV_FUSE_AUIPC_ADDI))
+    {
+      /* We are trying to match the following:
+	   prev (auipc) == (set (reg:DI rD) (unspec:DI [...] UNSPEC_AUIPC))
+	   prev (addi)  == (set (reg:DI rD)
+				(plus:DI (reg:DI rD) (const_int IMM12))) */
+
+      if (GET_CODE (SET_SRC (prev_set)) == UNSPEC
+	  && XINT (prev_set, 1) == UNSPEC_AUIPC
+	  && GET_CODE (SET_SRC (curr_set)) == PLUS
+	  && SMALL_OPERAND (INTVAL (XEXP (SET_SRC (curr_set), 1))))
+	return true;
+    }
+
+  if (simple_sets_p && riscv_fusion_enabled_p (RISCV_FUSE_LUI_LD))
+    {
+      /* We are trying to match the following:
+	   prev (lui)  == (set (reg:DI rD) (const_int UPPER_IMM_20))
+	   curr (ld)  == (set (reg:DI rD)
+			      (mem:DI (plus:DI (reg:DI rD) (const_int IMM12)))) */
+
+      if (CONST_INT_P (SET_SRC (prev_set))
+	  && LUI_OPERAND (INTVAL (SET_SRC (prev_set)))
+	  && MEM_P (SET_SRC (curr_set))
+	  && GET_CODE (XEXP (SET_SRC (curr_set), 0)) == PLUS)
+	return true;
+    }
+
+  if (simple_sets_p && riscv_fusion_enabled_p (RISCV_FUSE_AUIPC_LD))
+    {
+      /* We are trying to match the following:
+	   prev (auipc) == (set (reg:DI rD) (unspec:DI [...] UNSPEC_AUIPC))
+	   curr (ld)  == (set (reg:DI rD)
+			      (mem:DI (plus:DI (reg:DI rD) (const_int IMM12)))) */
+
+      if (GET_CODE (SET_SRC (prev_set)) == UNSPEC
+	  && XINT (prev_set, 1) == UNSPEC_AUIPC
+	  && MEM_P (SET_SRC (curr_set))
+	  && GET_CODE (XEXP (SET_SRC (curr_set), 0)) == PLUS)
+	return true;
+    }
+
+  return false;
+}
+
 /* Auxiliary function to emit RISC-V ELF attribute. */
 static void
 riscv_emit_attribute ()
@@ -5603,6 +5791,10 @@ riscv_asan_shadow_offset (void)
 
 #undef TARGET_SCHED_ISSUE_RATE
 #define TARGET_SCHED_ISSUE_RATE riscv_issue_rate
+#undef TARGET_SCHED_MACRO_FUSION_P
+#define TARGET_SCHED_MACRO_FUSION_P riscv_macro_fusion_p
+#undef TARGET_SCHED_MACRO_FUSION_PAIR_P
+#define TARGET_SCHED_MACRO_FUSION_PAIR_P riscv_macro_fusion_pair_p
 
 #undef TARGET_FUNCTION_OK_FOR_SIBCALL
 #define TARGET_FUNCTION_OK_FOR_SIBCALL riscv_function_ok_for_sibcall
