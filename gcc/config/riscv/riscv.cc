@@ -330,6 +330,21 @@ static const struct riscv_tune_param thead_c906_tune_info = {
   false,            /* slow_unaligned_access */
 };
 
+/* Costs to use when optimizing for xiangshan.  */
+static const struct riscv_tune_param xiangshan_tune_info = {
+  {COSTS_N_INSNS (3), COSTS_N_INSNS (3)},	/* fp_add */
+  {COSTS_N_INSNS (3), COSTS_N_INSNS (3)},	/* fp_mul */
+  {COSTS_N_INSNS (10), COSTS_N_INSNS (20)},	/* fp_div */
+  {COSTS_N_INSNS (3), COSTS_N_INSNS (3)},	/* int_mul */
+  {COSTS_N_INSNS (6), COSTS_N_INSNS (6)},	/* int_div */
+  6,						/* issue_rate */
+  3,						/* branch_cost */
+  3,						/* memory_cost */
+  true,						/* slow_unaligned_access */
+  RISCV_FUSE_ZEXTW | RISCV_FUSE_ZEXTH,          /* fusible_ops */
+};
+
+
 /* Costs to use when optimizing for size.  */
 static const struct riscv_tune_param optimize_size_tune_info = {
   {COSTS_N_INSNS (1), COSTS_N_INSNS (1)},	/* fp_add */
@@ -380,6 +395,7 @@ static const struct riscv_tune_info riscv_tune_info_table[] = {
   { "sifive-5-series", generic, &rocket_tune_info },
   { "sifive-7-series", sifive_7, &sifive_7_tune_info },
   { "thead-c906", generic, &thead_c906_tune_info },
+  { "xiangshan", generic, &xiangshan_tune_info },
   { "size", generic, &optimize_size_tune_info },
 };
 
