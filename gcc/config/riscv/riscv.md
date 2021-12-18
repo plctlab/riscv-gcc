@@ -82,6 +82,7 @@
 
 (define_constants
   [(RETURN_ADDR_REGNUM		1)
+   (SP_REGNUM 			2)
    (GP_REGNUM 			3)
    (TP_REGNUM			4)
    (T0_REGNUM			5)
@@ -2943,6 +2944,7 @@
 )
 
 (include "bitmanip.md")
+(include "zc.md")
 (include "sync.md")
 (include "peephole.md")
 (include "pic.md")

@@ -358,6 +358,7 @@ ASM_MISA_SPEC
 #define HARD_FRAME_POINTER_REGNUM 8
 #define STACK_POINTER_REGNUM 2
 #define THREAD_POINTER_REGNUM 4
+#define RETURN_VALUE_REGNUM 10
 
 /* These two registers don't really exist: they get eliminated to either
    the stack or hard frame pointer.  */
@@ -1007,5 +1008,7 @@ extern void riscv_remove_unneeded_save_restore_calls (void);
   ((VALUE) = GET_MODE_UNIT_BITSIZE (MODE), 2)
 
 #define TARGET_SUPPORTS_WIDE_INT 1
+
+#define RISCV_ZCE_PUSH_POP_MASK 0x0ffc0302u
 
 #endif /* ! GCC_RISCV_H */
