@@ -1010,5 +1010,6 @@ extern void riscv_remove_unneeded_save_restore_calls (void);
 #define TARGET_SUPPORTS_WIDE_INT 1
 
 #define RISCV_ZCE_PUSH_POP_MASK 0x0ffc0302u
+#define RISCV_ZCMPE_PUSH_POP_MASK 0x302u
 
 #endif /* ! GCC_RISCV_H */
