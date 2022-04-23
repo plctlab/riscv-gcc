@@ -111,9 +111,6 @@ struct GTY(())  riscv_frame_info {
   /* How much the push/pop routines adjust sp (or 0 if unused).  */
   unsigned push_pop_sp_adjust;
 
-  /* Offsets of push/pop save/restore areas from frame bottom.  */
-  unsigned push_pop_offset;
-
   /* How much the GPR save/restore routines adjust sp (or 0 if unused).  */
   unsigned save_libcall_adjustment;
 
@@ -4251,7 +4248,6 @@ riscv_compute_frame_info (void)
   if (frame->hard_frame_pointer_offset != frame->total_size)
     frame->save_libcall_adjustment = 0;
 
-  frame->push_pop_offset = 0;
   frame->push_pop_sp_adjust = 0;
 }
 
@@ -4348,7 +4344,7 @@ riscv_for_each_saved_reg (HOST_WIDE_INT sp_offset, riscv_save_restore_fn fn,
   HOST_WIDE_INT offset;
 
   /* Save the link register and s-registers. */
-  offset = cfun->machine->frame.gp_sp_offset - cfun->machine->frame.push_pop_offset - sp_offset;
+  offset = cfun->machine->frame.gp_sp_offset - sp_offset;
   for (unsigned int regno = GP_REG_FIRST; regno <= GP_REG_LAST; regno++)
     if (BITSET_P (cfun->machine->frame.mask, regno - GP_REG_FIRST))
       {
@@ -4491,7 +4487,7 @@ riscv_emit_pop_insn (struct riscv_frame_info *frame, HOST_WIDE_INT offset, HOST_
 	const0_rtx);
   dwarf = alloc_reg_note (REG_CFA_DEF_CFA, cfa_adjust_rtx, dwarf);
 
-  frame->push_pop_offset = (veclen - 1) * UNITS_PER_WORD;
+  frame->gp_sp_offset -= (veclen - 1) * UNITS_PER_WORD;
   frame->push_pop_sp_adjust = sp_adjust;
 
   rtx insn = emit_insn (gen_rtx_PARALLEL (VOIDmode, vec));
@@ -4701,7 +4697,7 @@ riscv_emit_push_insn (struct riscv_frame_info *frame, HOST_WIDE_INT size)
       : aligned_size;
 
   /*TODO: move this part to frame computation function. */
-  frame->push_pop_offset = (veclen - 1) * UNITS_PER_WORD;
+  frame->gp_sp_offset = (veclen - 1) * UNITS_PER_WORD;
   frame->push_pop_sp_adjust = sp_adjust;
 
   rtx adjust_sp_rtx
