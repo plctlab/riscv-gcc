@@ -40,6 +40,8 @@ along with GCC; see the file COPYING3.  If not see
 /* Macros to create an enumeration identifier for a function prototype.  */
 #define RISCV_FTYPE_NAME0(A) RISCV_##A##_FTYPE
 #define RISCV_FTYPE_NAME1(A, B) RISCV_##A##_FTYPE_##B
+#define RISCV_FTYPE_NAME2(A, B, C) RISCV_##A##_FTYPE_##B##_##C
+#define RISCV_FTYPE_NAME3(A, B, C, D) RISCV_##A##_FTYPE_##B##_##C##_##D
 
 /* Classifies the prototype of a built-in function.  */
 enum riscv_function_type {
@@ -99,6 +101,10 @@ AVAIL (zero64,  TARGET_ZICBOZ && TARGET_64BIT)
 AVAIL (prefetchi32, TARGET_ZICBOP && !TARGET_64BIT)
 AVAIL (prefetchi64, TARGET_ZICBOP && TARGET_64BIT)
 
+/* p ext */
+AVAIL (zbpbo32, TARGET_ZBPBO && !TARGET_64BIT)
+AVAIL (zbpbo64, TARGET_ZBPBO && TARGET_64BIT)
+
 /* Construct a riscv_builtin_description from the given arguments.
 
    INSN is the name of the associated instruction pattern, without the
@@ -128,12 +134,31 @@ AVAIL (prefetchi64, TARGET_ZICBOP && TARGET_64BIT)
   RISCV_BUILTIN (INSN, #INSN, RISCV_BUILTIN_DIRECT_NO_TARGET,		\
 		FUNCTION_TYPE, AVAIL)
 
+/* Define __builtin_riscv_<NAME>, which is a RISCV_BUILTIN_DIRECT function
+   mapped to instruction CODE_FOR_<INSN>,  FUNCTION_TYPE and AVAIL
+   are as for RISCV_BUILTIN.  */
+#define DIRECT_BUILTIN_NO_PREFIX(INSN, NAME, FUNCTION_TYPE, AVAIL)			\
+  { CODE_FOR_ ## INSN, "__builtin_riscv_" # NAME,			\
+    RISCV_BUILTIN_DIRECT, FUNCTION_TYPE, riscv_builtin_avail_ ## AVAIL }
+
+/* Define __builtin_riscv_<NAME>, which is a RISCV_BUILTIN_DIRECT_NO_TARGET function
+   mapped to instruction CODE_FOR_<INSN>,  FUNCTION_TYPE and AVAIL
+   are as for RISCV_BUILTIN.  */
+#define DIRECT_NO_TARGET_BUILTIN_NO_PREFIX(INSN, NAME, FUNCTION_TYPE, AVAIL)			\
+  { CODE_FOR_ ## INSN, "__builtin_riscv_" # NAME,			\
+    RISCV_BUILTIN_DIRECT_NO_TARGET, FUNCTION_TYPE, riscv_builtin_avail_ ## AVAIL }
+
+tree uint_xlen_node;
+tree int_xlen_node;
+
 /* Argument types.  */
 #define RISCV_ATYPE_VOID void_type_node
 #define RISCV_ATYPE_USI unsigned_intSI_type_node
 #define RISCV_ATYPE_SI intSI_type_node
 #define RISCV_ATYPE_DI intDI_type_node
 #define RISCV_ATYPE_VOID_PTR ptr_type_node
+#define RISCV_ATYPE_IXLEN  int_xlen_node
+#define RISCV_ATYPE_UIXLEN uint_xlen_node
 
 /* RISCV_FTYPE_ATYPESN takes N RISCV_FTYPES-like type codes and lists
    their associated RISCV_ATYPEs.  */
@@ -141,6 +166,10 @@ AVAIL (prefetchi64, TARGET_ZICBOP && TARGET_64BIT)
   RISCV_ATYPE_##A
 #define RISCV_FTYPE_ATYPES1(A, B) \
   RISCV_ATYPE_##A, RISCV_ATYPE_##B
+#define RISCV_FTYPE_ATYPES2(A, B, C) \
+  RISCV_ATYPE_##A, RISCV_ATYPE_##B, RISCV_ATYPE_##C
+#define RISCV_FTYPE_ATYPES3(A, B, C, D) \
+  RISCV_ATYPE_##A, RISCV_ATYPE_##B, RISCV_ATYPE_##C, RISCV_ATYPE_##D
 
 static const struct riscv_builtin_description riscv_builtins[] = {
   #include "riscv-cmo.def"
@@ -190,6 +219,18 @@ riscv_build_function_type (enum riscv_function_type type)
 void
 riscv_init_builtins (void)
 {
+  /* Implement int_xlen_node and uint_xlen_node */
+  if (TARGET_64BIT)
+    {
+      int_xlen_node  = intDI_type_node;
+      uint_xlen_node = unsigned_intDI_type_node;
+    }
+  else
+    {
+      int_xlen_node  = intSI_type_node;
+      uint_xlen_node = unsigned_intSI_type_node;
+    }
+
   for (size_t i = 0; i < ARRAY_SIZE (riscv_builtins); i++)
     {
       const struct riscv_builtin_description *d = &riscv_builtins[i];

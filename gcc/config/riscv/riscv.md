@@ -78,6 +78,13 @@
   UNSPECV_INVAL
   UNSPECV_ZERO
   UNSPECV_PREI
+
+  ;; RVP instructions.
+  UNSPEC_BITREV
+  UNSPEC_BSWAP
+  UNSPEC_FSR
+  UNSPEC_FSRW
+
 ])
 
 (define_constants
@@ -178,10 +185,15 @@
 ;; nop		no operation
 ;; ghost	an instruction that produces no real code
 ;; bitmanip	bit manipulation instructions
+;; simd   simd instruction for p extension
+;; psimd  partial-simd data processing instructions
+;; dsp    instructions for increasing the DSP processing capabilities
+;; dsp64  as the same as dsp, but RV64P only
 (define_attr "type"
   "unknown,branch,jump,call,load,fpload,store,fpstore,
    mtc,mfc,const,arith,logical,shift,slt,imul,idiv,move,fmove,fadd,fmul,
-   fmadd,fdiv,fcmp,fcvt,fsqrt,multi,auipc,sfb_alu,nop,ghost,bitmanip,rotate"
+   fmadd,fdiv,fcmp,fcvt,fsqrt,multi,auipc,sfb_alu,nop,ghost,bitmanip,rotate,
+   simd,psimd,dsp,dsp64"
   (cond [(eq_attr "got" "load") (const_string "load")
 
 	 ;; If a doubleword move uses these expensive instructions,
@@ -2941,6 +2953,7 @@
 )
 
 (include "bitmanip.md")
+(include "rvp.md")
 (include "sync.md")
 (include "peephole.md")
 (include "pic.md")

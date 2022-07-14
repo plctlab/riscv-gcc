@@ -1,0 +1,33 @@
+/* Builtin definitions for P extension
+   Copyright (C) 2021 Free Software Foundation, Inc.
+
+This file is part of GCC.
+
+GCC is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3, or (at your option)
+any later version.
+
+GCC is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GCC; see the file COPYING3.  If not see
+<http://www.gnu.org/licenses/>.  */
+
+/* zbpbo subset */
+DIRECT_BUILTIN_NO_PREFIX (clzsi_rvp, clz, RISCV_SI_FTYPE_SI, zbpbo32),
+DIRECT_BUILTIN_NO_PREFIX (revsi, rev, RISCV_UIXLEN_FTYPE_UIXLEN, zbpbo32),
+DIRECT_BUILTIN_NO_PREFIX (revdi, rev, RISCV_UIXLEN_FTYPE_UIXLEN, zbpbo64),
+DIRECT_BUILTIN_NO_PREFIX (fsrw, fsrw, RISCV_USI_FTYPE_USI_USI_USI, zbpbo64),
+DIRECT_BUILTIN_NO_PREFIX (fsr, fsr, RISCV_USI_FTYPE_USI_USI_USI, zbpbo32),
+DIRECT_BUILTIN_NO_PREFIX (cmixsi, cmix, RISCV_UIXLEN_FTYPE_UIXLEN_UIXLEN_UIXLEN, zbpbo32),
+DIRECT_BUILTIN_NO_PREFIX (cmixdi, cmix, RISCV_UIXLEN_FTYPE_UIXLEN_UIXLEN_UIXLEN, zbpbo64),
+DIRECT_BUILTIN_NO_PREFIX (smaxsi3_rvp, max, RISCV_SI_FTYPE_SI_SI, zbpbo32),
+DIRECT_BUILTIN_NO_PREFIX (sminsi3_rvp, min, RISCV_SI_FTYPE_SI_SI, zbpbo32),
+DIRECT_BUILTIN_NO_PREFIX (smaxdi3_rvp, max, RISCV_DI_FTYPE_DI_DI, zbpbo64),
+DIRECT_BUILTIN_NO_PREFIX (smindi3_rvp, min, RISCV_DI_FTYPE_DI_DI, zbpbo64),
+DIRECT_BUILTIN_NO_PREFIX (bswap8si, swap8, RISCV_UIXLEN_FTYPE_UIXLEN, zbpbo32),
+DIRECT_BUILTIN_NO_PREFIX (bswap8di, swap8, RISCV_UIXLEN_FTYPE_UIXLEN, zbpbo64),
