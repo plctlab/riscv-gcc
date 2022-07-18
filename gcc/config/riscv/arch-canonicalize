@@ -45,6 +45,8 @@ IMPLIED_EXT = {
   "zkn" : ["zbkb", "zbkc", "zbkx", "zkne", "zknd", "zknh"],
   "zks" : ["zbkb", "zbkc", "zbkx", "zksed", "zksh"],
 
+  "p" : ["zbpbo", "zpn", "zpsf"],
+
   "v" : ["zvl128b", "zve64d"],
   "zve32x" : ["zvl32b"],
   "zve64x" : ["zve32x", "zvl64b"],
