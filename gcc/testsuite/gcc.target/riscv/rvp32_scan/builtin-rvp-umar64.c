@@ -15,5 +15,5 @@ uint64_t test_autogen(uint64_t t, uint32_t a, uint32_t b) {
   return t + (uint64_t)a * (uint64_t)b;
 }
 
-/* { dg-final { scan-assembler-times "umar64" 3 } } */
+/* { dg-final { scan-assembler-times "umar64" 2 } } */
 /* { dg-final { scan-assembler-times "builtin_riscv" 0 } } */
