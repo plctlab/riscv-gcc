@@ -3319,7 +3319,7 @@ riscv_output_move (rtx dest, rtx src)
       if (src_code == MEM)
 	switch (width)
 	  {
-	  case 1: return "lbu\t%0,%1";
+	  case 1: return "lw\t%0,%1\naddi\t%0,%0,0xff";
 	  case 2: return "lhu\t%0,%1";
 	  case 4: return "lw\t%0,%1";
 	  case 8: return "ld\t%0,%1";

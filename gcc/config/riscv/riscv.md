@@ -1697,7 +1697,7 @@
   ""
   "@
    andi\t%0,%1,0xff
-   lbu\t%0,%1"
+   lw\t%0,%1"
   [(set_attr "move_type" "andi,load")
    (set_attr "type" "multi")
    (set_attr "mode" "<SUPERQI:MODE>")])
