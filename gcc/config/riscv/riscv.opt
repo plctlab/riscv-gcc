@@ -218,6 +218,9 @@ TargetVariable
 int riscv_zk_subext
 
 TargetVariable
+int riscv_rvp_subext
+
+TargetVariable
 int riscv_vector_elen_flags
 
 TargetVariable

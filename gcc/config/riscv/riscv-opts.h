@@ -127,6 +127,14 @@ enum riscv_multilib_select_kind {
 #define TARGET_ZKSH   ((riscv_zk_subext & MASK_ZKSH) != 0)
 #define TARGET_ZKT    ((riscv_zk_subext & MASK_ZKT) != 0)
 
+#define MASK_ZPN (1 << 0)
+#define MASK_ZBPBO (1 << 1)
+#define MASK_ZPSFOPERAND (1 << 2)
+
+#define TARGET_ZPN ((riscv_rvp_subext & MASK_ZPN) != 0)
+#define TARGET_ZBPBO ((riscv_rvp_subext & MASK_ZBPBO) != 0)
+#define TARGET_ZPSFOPERAND ((riscv_rvp_subext & MASK_ZPSFOPERAND) != 0)
+
 #define MASK_VECTOR_ELEN_32    (1 << 0)
 #define MASK_VECTOR_ELEN_64    (1 << 1)
 #define MASK_VECTOR_ELEN_FP_32 (1 << 2)
